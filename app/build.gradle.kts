@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    id("kotlin-kapt")
 }
 
 android {
@@ -49,8 +50,13 @@ android {
     }
 }
 
-dependencies {
+val room_version = "2.6.1"
 
+dependencies {
+    implementation("androidx.compose.ui:ui:1.2.1")
+    implementation("androidx.compose.material:material:1.2.1")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.2.1")
+    implementation("androidx.activity:activity-compose:1.6.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -59,6 +65,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.navigation.runtime.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -69,4 +77,12 @@ dependencies {
     //Maps
     implementation("com.google.maps.android:maps-compose:4.4.1")
     implementation("com.google.android.gms:play-services-maps:19.0.0")
+    implementation ("com.google.android.gms:play-services-location:18.0.0")
+    implementation ("com.google.accompanist:accompanist-permissions:0.23.1")
+
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    kapt("androidx.room:room-compiler:$room_version")
+
+
 }
