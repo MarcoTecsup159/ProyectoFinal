@@ -1,28 +1,41 @@
 package com.example.proyectofinal
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar() {
+    var expanded by remember { mutableStateOf(false) }
+
+
     TopAppBar(
         title = { Text(text = "Mi Aplicación") },
         navigationIcon = {
-            IconButton(onClick = { /* Acción del menú */ }) {
+            IconButton(onClick = { expanded = true }) {
                 Icon(Icons.Filled.Menu, contentDescription = "Menu")
             }
         },
@@ -33,6 +46,8 @@ fun TopBar() {
         }
     )
 }
+
+
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {

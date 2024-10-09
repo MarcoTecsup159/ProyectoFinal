@@ -16,11 +16,13 @@ import com.example.proyectofinal.View.LoginScreen
 import com.example.proyectofinal.View.RegisterScreen
 import com.example.proyectofinal.ui.theme.ProyectoFInalTheme
 import com.google.android.gms.maps.GoogleMap
+import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     private lateinit var map:GoogleMap
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FirebaseApp.initializeApp(this)
         setContent {
             ProyectoFInalTheme {
                 val navController = rememberNavController()
