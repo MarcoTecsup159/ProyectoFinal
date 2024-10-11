@@ -55,6 +55,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.maps.android.PolyUtil
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.Polyline
+import com.google.maps.android.ktx.model.polylineOptions
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -78,25 +79,26 @@ fun AppScreen() {
 @Composable
 fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(navController, startDestination = "map", modifier = modifier) {
-        composable("map") { MyGoogleMaps() }
+        composable("map") { MyGoogleMaps("C4","R1") }
         composable("favoriteroute") { FavoriteRoute() }
         composable("profile") { ProfileScreen() }
     }
 }
 
-
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun MyGoogleMaps() {
+fun MyGoogleMaps(empresaId: String, rutaId: String) {
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     var routePoints by remember { mutableStateOf<List<LatLng>>(emptyList()) }
     var showDialog by remember { mutableStateOf(false) }
     var routeName by remember { mutableStateOf("") }
+    var coordenadas by remember { mutableStateOf(listOf<Pair<Double, Double>>()) }
 
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
+    // Efecto lanzado para obtener ubicación actual y coordenadas de la ruta
     LaunchedEffect(locationPermissionState.hasPermission) {
         if (locationPermissionState.hasPermission) {
             if (ActivityCompat.checkSelfPermission(
@@ -113,8 +115,13 @@ fun MyGoogleMaps() {
         } else {
             locationPermissionState.launchPermissionRequest()
         }
+        // Llamada para obtener las coordenadas de la base de datos
+        obtenerCoordenadas(empresaId, rutaId) { coords ->
+            coordenadas = coords
+        }
     }
 
+    // Mapa con la posición de la cámara centrada en la ubicación actual
     val cameraPositionState = rememberCameraPositionState {
         position = currentLocation?.let {
             com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(it, 12f)
@@ -129,20 +136,23 @@ fun MyGoogleMaps() {
                 routePoints = routePoints + latLng
             }
         ) {
+            // Mostrar la ubicación actual con un marcador
             currentLocation?.let {
                 Marker(
                     state = rememberMarkerState(position = it),
                     title = "Current Location"
                 )
             }
+
+            // Dibujar los puntos de la ruta añadidos manualmente
             routePoints.forEachIndexed { index, point ->
                 val markerState = rememberMarkerState(position = point)
                 Circle(
-                    center = point, // LatLng de tu punto
-                    radius = 5.0,  // Radio en metros
-                    strokeColor = Color.Blue, // Color del borde
-                    strokeWidth = 1f,         // Ancho del borde
-                    fillColor = Color.Blue // Color del interior del círculo con transparencia
+                    center = point,
+                    radius = 5.0,
+                    strokeColor = Color.Blue,
+                    strokeWidth = 1f,
+                    fillColor = Color.Blue
                 )
                 LaunchedEffect(markerState.position) {
                     val newPoint = markerState.position
@@ -153,6 +163,8 @@ fun MyGoogleMaps() {
                     }
                 }
             }
+
+            // Dibujar las líneas de la ruta manualmente
             if (routePoints.size > 1) {
                 for (i in 0 until routePoints.size - 1) {
                     Polyline(
@@ -162,7 +174,19 @@ fun MyGoogleMaps() {
                     )
                 }
             }
+
+            // Convertir las coordenadas a LatLng y dibujar Polyline en el mapa
+            val polylinePoints = coordenadas.map { LatLng(it.first, it.second) }
+            if (polylinePoints.size > 1) {
+                Polyline(
+                    points = polylinePoints,
+                    color = Color.Red,
+                    width = 10f
+                )
+            }
         }
+
+        // Botones adicionales para controlar la vista y la ruta
         Button(
             onClick = {
                 if (ActivityCompat.checkSelfPermission(
@@ -185,6 +209,8 @@ fun MyGoogleMaps() {
         ) {
             Text("Center on Current Location")
         }
+
+        // Botones para modificar la ruta
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -204,6 +230,8 @@ fun MyGoogleMaps() {
                 Text("Clear Route")
             }
         }
+
+        // Botón para guardar la ruta
         Button(
             onClick = { showDialog = true },
             modifier = Modifier
@@ -213,6 +241,7 @@ fun MyGoogleMaps() {
             Text("Save Route")
         }
     }
+
 
     if (showDialog) {
         AlertDialog(
