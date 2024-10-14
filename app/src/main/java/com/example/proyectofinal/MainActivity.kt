@@ -12,6 +12,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.proyectofinal.View.AppScreen
 import com.example.proyectofinal.View.LoginScreen
 import com.example.proyectofinal.View.RegisterScreen
 import com.example.proyectofinal.ui.theme.ProyectoFInalTheme
