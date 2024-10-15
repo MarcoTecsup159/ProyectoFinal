@@ -5,6 +5,7 @@ import android.location.Geocoder
 import android.util.Log
 import android.widget.Toast
 import com.example.proyectofinal.Model.Empresa
+import com.example.proyectofinal.Model.Ruta
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -33,9 +34,9 @@ import java.util.Locale
         })
     }
 
-fun saveRouteToFirebase(context: Context, routeName: String, routePoints: List<LatLng>) {
+fun saveRouteToFirebase(context: Context, empresaId: String, routeName: String, routePoints: List<LatLng>) {
     val database = FirebaseDatabase.getInstance()
-    val routesRef = database.getReference("empresas/C4/rutas")
+    val routesRef = database.getReference("empresas/$empresaId/rutas")  // Guardar bajo la empresa seleccionada
 
     val geocoder = Geocoder(context, Locale.getDefault())
     var originAddress = ""
@@ -51,7 +52,6 @@ fun saveRouteToFirebase(context: Context, routeName: String, routePoints: List<L
         Log.e("Geocoder", "Error getting address", e)
     }
 
-    // Verificación de campos vacíos
     if (originAddress.isEmpty()) originAddress = "Origen desconocido"
     if (destinationAddress.isEmpty()) destinationAddress = "Destino desconocido"
     if (routeName.isBlank()) {
@@ -66,12 +66,10 @@ fun saveRouteToFirebase(context: Context, routeName: String, routePoints: List<L
         "puntosIntermedio" to routePoints.map { mapOf("lat" to it.latitude, "lng" to it.longitude) }
     )
 
-    // Obtén el número de rutas existentes para generar un identificador único
     routesRef.get().addOnSuccessListener { snapshot ->
         val routeCount = snapshot.childrenCount.toInt() + 1
-        val routeId = "R$routeCount"  // Formato de identificador R#
+        val routeId = "R$routeCount"
 
-        // Guarda la nueva ruta bajo el identificador generado
         routesRef.child(routeId).setValue(routeData).addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 Log.d("Firebase", "Ruta guardada con éxito bajo la clave: $routeId")
@@ -83,6 +81,7 @@ fun saveRouteToFirebase(context: Context, routeName: String, routePoints: List<L
         Log.e("Firebase", "Error obteniendo el conteo de rutas: ${e.message}")
     }
 }
+
 
     fun getAddressFromLatLng(context: Context, latLng: LatLng): String {
         val geocoder = Geocoder(context, Locale.getDefault())
@@ -120,3 +119,55 @@ fun saveRouteToFirebase(context: Context, routeName: String, routePoints: List<L
             }
         })
     }
+
+fun obtenerRutas(empresaId: String, callback: (List<Ruta>) -> Unit) {
+    val databaseReference = FirebaseDatabase.getInstance()
+        .getReference("empresas")
+        .child(empresaId)
+        .child("rutas")
+
+    databaseReference.addListenerForSingleValueEvent(object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            val rutaList = mutableListOf<Ruta>()
+            for (rutaSnapshot in snapshot.children) {
+                val ruta = rutaSnapshot.getValue(Ruta::class.java)
+                ruta?.let { rutaList.add(it) }
+            }
+            callback(rutaList)
+        }
+
+        override fun onCancelled(error: DatabaseError) {
+            // Manejo de errores
+        }
+    })
+}
+
+fun updateRouteInFirebase(context: Context, oldEmpresaId: String, rutaId: String, newEmpresaId: String, newRouteName: String) {
+    val database = FirebaseDatabase.getInstance()
+    val oldRouteRef = database.getReference("empresas/$oldEmpresaId/rutas/$rutaId")
+    val newRouteRef = database.getReference("empresas/$newEmpresaId/rutas/$rutaId")
+
+    oldRouteRef.get().addOnSuccessListener { snapshot ->
+        val routeData = snapshot.value as? Map<String, Any> ?: return@addOnSuccessListener
+
+        // Actualizar el nombre de la ruta
+        val updatedRouteData = routeData.toMutableMap().apply {
+            put("nombreRuta", newRouteName)
+        }
+
+        // Guardar los datos actualizados en la nueva ubicación
+        newRouteRef.setValue(updatedRouteData).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                // Eliminar la ruta antigua si se movió a una nueva empresa
+                if (oldEmpresaId != newEmpresaId) {
+                    oldRouteRef.removeValue()
+                }
+                Log.d("Firebase", "Ruta actualizada con éxito")
+            } else {
+                Log.e("Firebase", "Error actualizando la ruta: ${task.exception?.message}")
+            }
+        }
+    }.addOnFailureListener { e ->
+        Log.e("Firebase", "Error obteniendo la ruta: ${e.message}")
+    }
+}
