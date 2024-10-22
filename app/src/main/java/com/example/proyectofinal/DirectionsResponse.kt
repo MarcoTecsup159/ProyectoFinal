@@ -1,18 +1,14 @@
 package com.example.proyectofinal
 
-import com.google.gson.annotations.SerializedName
 
 data class DirectionsResponse(
-    @SerializedName("routes")
     val routes: List<Route>
 )
 
 data class Route(
-    @SerializedName("overview_polyline")
-    val overviewPolyline: OverviewPolyline
+    val overview_polyline: OverviewPolyline
 )
 
 data class OverviewPolyline(
-    @SerializedName("points")
     val points: String
 )

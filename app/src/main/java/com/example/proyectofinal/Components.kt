@@ -52,7 +52,6 @@ import androidx.navigation.NavHostController
 import com.example.proyectofinal.Model.Empresa
 import com.example.proyectofinal.Model.Ruta
 import com.example.proyectofinal.viewmodels.obtenerEmpresas
-import com.example.proyectofinal.viewmodels.obtenerRutas
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -160,7 +159,7 @@ fun DrawerContent(navController: NavController, drawerState: DrawerState, onRuta
 
 @Composable
 fun EmpresaCard(empresa: Empresa, onRutaClick: (String, String) -> Unit) {
-    var showRoutes by remember { mutableStateOf(true)}
+    var showRoutes by remember { mutableStateOf(false)}
     var rutas by remember { mutableStateOf<List<Ruta>>(emptyList()) }
 
     Card(

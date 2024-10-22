@@ -1,38 +1,55 @@
 package com.example.proyectofinal.viewmodels
 
 import android.content.Context
+import android.graphics.Color
 import android.location.Geocoder
+import android.location.Location
 import android.util.Log
 import android.widget.Toast
+import com.example.proyectofinal.DirectionsApiService
+import com.example.proyectofinal.DirectionsResponse
 import com.example.proyectofinal.Model.Empresa
-import com.example.proyectofinal.Model.Ruta
+import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.PolylineOptions
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.example.proyectofinal.decodePolyline
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
 import java.util.Locale
 
-    fun obtenerEmpresas(callback: (List<Empresa>) -> Unit) {
-        val databaseReference = FirebaseDatabase.getInstance().getReference("empresas")
-        val empresaList = mutableListOf<Empresa>()
 
-        databaseReference.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                empresaList.clear()
-                for (empresaSnapshot in snapshot.children) {
-                    val empresa = empresaSnapshot.getValue(Empresa::class.java)
-                    empresa?.let { empresaList.add(it) }
-                }
-                callback(empresaList)
-            }
+val retrofit = Retrofit.Builder()
+    .baseUrl("https://gocombi-c2686-default-rtdb.firebaseio.com/empresas/") // Reemplaza con la URL base de tu API
+    .addConverterFactory(GsonConverterFactory.create()) // Convertidor Gson para manejar JSON
+    .build()
 
-            override fun onCancelled(error: DatabaseError) {
-                // Manejo de errores si es necesario
+fun obtenerEmpresas(callback: (List<Empresa>) -> Unit) {
+    val databaseReference = FirebaseDatabase.getInstance().getReference("empresas")
+    val empresaList = mutableListOf<Empresa>()
+
+    databaseReference.addValueEventListener(object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            empresaList.clear()
+            for (empresaSnapshot in snapshot.children) {
+                val empresa = empresaSnapshot.getValue(Empresa::class.java)
+                empresa?.let { empresaList.add(it) }
             }
-        })
-    }
+            callback(empresaList)
+        }
+
+        override fun onCancelled(error: DatabaseError) {
+            // Manejo de errores si es necesario
+        }
+    })
+}
 
 fun saveRouteToFirebase(context: Context, empresaId: String, routeName: String, routePoints: List<LatLng>) {
     val database = FirebaseDatabase.getInstance()
@@ -83,63 +100,109 @@ fun saveRouteToFirebase(context: Context, empresaId: String, routeName: String, 
 }
 
 
-    fun getAddressFromLatLng(context: Context, latLng: LatLng): String {
-        val geocoder = Geocoder(context, Locale.getDefault())
-        return try {
-            val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
-            addresses?.firstOrNull()?.getAddressLine(0) ?: "Unknown Address"
-        } catch (e: IOException) {
-            "Error getting address"
-        }
+fun getAddressFromLatLng(context: Context, latLng: LatLng): String {
+    val geocoder = Geocoder(context, Locale.getDefault())
+    return try {
+        val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+        addresses?.firstOrNull()?.getAddressLine(0) ?: "Unknown Address"
+    } catch (e: IOException) {
+        "Error getting address"
     }
+}
 
-    fun obtenerCoordenadas(empresaId: String, rutaId: String, callback: (List<Pair<Double, Double>>) -> Unit) {
-        val rutaReference = FirebaseDatabase.getInstance()
-            .getReference("empresas")
-            .child(empresaId)
-            .child("rutas")
-            .child(rutaId)
-            .child("puntosIntermedio")
-
-        rutaReference.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val coordenadas = mutableListOf<Pair<Double, Double>>()
-                for (puntoSnapshot in snapshot.children) {
-                    val latitud = puntoSnapshot.child("lat").getValue(Double::class.java)
-                    val longitud = puntoSnapshot.child("lng").getValue(Double::class.java)
-                    if (latitud != null && longitud != null) {
-                        coordenadas.add(Pair(latitud, longitud))
-                    }
-                }
-                callback(coordenadas)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                // Manejo de errores si es necesario
-            }
-        })
-    }
-
-fun obtenerRutas(empresaId: String, callback: (List<Ruta>) -> Unit) {
-    val databaseReference = FirebaseDatabase.getInstance()
+fun obtenerCoordenadas(empresaId: String, rutaId: String, callback: (List<Pair<Double, Double>>, String) -> Unit)  {
+    val rutaReference = FirebaseDatabase.getInstance()
         .getReference("empresas")
         .child(empresaId)
         .child("rutas")
+        .child(rutaId)
+        .child("puntosIntermedio")
 
-    databaseReference.addListenerForSingleValueEvent(object : ValueEventListener {
+    rutaReference.addValueEventListener(object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
-            val rutaList = mutableListOf<Ruta>()
-            for (rutaSnapshot in snapshot.children) {
-                val ruta = rutaSnapshot.getValue(Ruta::class.java)
-                ruta?.let { rutaList.add(it) }
+            val coordenadas = mutableListOf<Pair<Double, Double>>()
+            for (puntoSnapshot in snapshot.children) {
+                val latitud = puntoSnapshot.child("lat").getValue(Double::class.java)
+                val longitud = puntoSnapshot.child("lng").getValue(Double::class.java)
+                if (latitud != null && longitud != null) {
+                    coordenadas.add(Pair(latitud, longitud))
+                }
             }
-            callback(rutaList)
+            // Llamada al callback con coordenadas y rutaId como segundo parámetro
+            callback(coordenadas, rutaId)
         }
 
         override fun onCancelled(error: DatabaseError) {
-            // Manejo de errores
+            // Manejo de errores si es necesario
         }
     })
+}
+
+fun obtenerRuta(
+    origin: LatLng,
+    destination: LatLng,
+    apiKey: String,
+    callback: (List<LatLng>) -> Unit
+) {
+    val directionsApiService = retrofit.create(DirectionsApiService::class.java)
+    val originStr = "${origin.latitude},${origin.longitude}"
+    val destinationStr = "${destination.latitude},${destination.longitude}"
+
+    val call = directionsApiService.getDirections(originStr, destinationStr, null, apiKey)
+    call.enqueue(object : Callback<DirectionsResponse> {
+        override fun onResponse(
+            call: Call<DirectionsResponse>,
+            response: Response<DirectionsResponse>
+        ) {
+            if (response.isSuccessful) {
+                response.body()?.let { directionsResponse ->
+                    // Obtener la cadena de puntos de la overview_polyline
+                    val polyline = directionsResponse.routes.firstOrNull()?.overview_polyline?.points
+                    if (!polyline.isNullOrEmpty()) {
+                        // Decodificar la cadena de puntos en una lista de LatLng
+                        val routePoints = decodePolyline(polyline)
+                        callback(routePoints)
+                    } else {
+                        // Si no hay puntos, retornar una lista vacía
+                        callback(emptyList())
+                    }
+                }
+            } else {
+                // Manejar la respuesta no exitosa
+                callback(emptyList())
+            }
+        }
+
+        override fun onFailure(call: Call<DirectionsResponse>, t: Throwable) {
+            // Manejar errores de la API
+            t.printStackTrace()
+            callback(emptyList())
+        }
+    })
+}
+
+// Función para encontrar el punto más cercano
+fun encontrarPuntoMasCercano(currentLocation: LatLng, coordenadas: List<Pair<Double, Double>>): LatLng? {
+    var puntoMasCercano: LatLng? = null
+    var distanciaMinima = Double.MAX_VALUE
+
+    for (coord in coordenadas) {
+        val punto = LatLng(coord.first, coord.second)
+        val distancia = calcularDistancia(currentLocation, punto)
+        if (distancia < distanciaMinima) {
+            distanciaMinima = distancia
+            puntoMasCercano = punto
+        }
+    }
+
+    return puntoMasCercano
+}
+
+// Función para calcular la distancia entre dos puntos
+fun calcularDistancia(p1: LatLng, p2: LatLng): Double {
+    val results = FloatArray(1)
+    Location.distanceBetween(p1.latitude, p1.longitude, p2.latitude, p2.longitude, results)
+    return results[0].toDouble()  // Distancia en metros
 }
 
 fun updateRouteInFirebase(context: Context, oldEmpresaId: String, rutaId: String, newEmpresaId: String, newRouteName: String) {
@@ -170,4 +233,13 @@ fun updateRouteInFirebase(context: Context, oldEmpresaId: String, rutaId: String
     }.addOnFailureListener { e ->
         Log.e("Firebase", "Error obteniendo la ruta: ${e.message}")
     }
+}
+
+fun dibujarRutaEnMapa(puntosRuta: List<LatLng>, googleMap: GoogleMap) {
+    val polylineOptions = PolylineOptions()
+        .addAll(puntosRuta)
+        .color(Color.BLUE)
+        .width(10f)
+
+    googleMap.addPolyline(polylineOptions)
 }

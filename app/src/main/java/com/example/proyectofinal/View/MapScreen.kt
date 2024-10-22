@@ -29,6 +29,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -43,17 +44,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.TextField
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.proyectofinal.BottomNavigationBar
 import com.example.proyectofinal.DrawerContent
 import com.example.proyectofinal.TopAppBar
+import com.example.proyectofinal.viewmodels.dibujarRutaEnMapa
+import com.example.proyectofinal.viewmodels.encontrarPuntoMasCercano
 import com.example.proyectofinal.viewmodels.obtenerCoordenadas
+import com.example.proyectofinal.viewmodels.obtenerRuta
 import com.example.proyectofinal.viewmodels.updateRouteInFirebase
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.android.gms.maps.MapView
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Polyline
 import kotlinx.coroutines.launch
 
@@ -80,6 +91,7 @@ fun AppScreen() {
                 }
             }
         },
+        gesturesEnabled = false,
         modifier = Modifier.fillMaxWidth(0.75f)  // El Drawer ocupará el 75% del ancho
     ) {
         Scaffold(
@@ -101,9 +113,9 @@ fun NavigationHost(
     NavHost(navController, startDestination = "map", modifier = modifier) {
         composable("map") {
             if (empresaId != null && rutaId != null) {
-                UserMapView(empresaId, rutaId)
+                UserMapView(empresaId, rutaId, "AIzaSyDKZiHPz_IjoyrBkKj08G362TUyzni4vtw")
             } else {
-                Text("Seleccione una ruta desde el menú")
+                InicioMap()
             }
         }
         composable("createRoute") { RouteCreationMap() }
@@ -112,20 +124,67 @@ fun NavigationHost(
     }
 }
 
+@Composable
+fun InicioMap() {
+    // Coordenadas de Arequipa
+    val arequipaLocation = LatLng(-16.4090, -71.5375)
+
+    // Crear el estado de la cámara para centrar el mapa en Arequipa
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(arequipaLocation, 12f) // Zoom nivel 12 para un buen enfoque
+    }
+
+    GoogleMap(
+        modifier = Modifier.fillMaxSize(),
+        cameraPositionState = cameraPositionState
+    ) {
+    }
+}
+
+
+@Composable
+fun rememberMapViewWithLifecycle(): MapView {
+    val context = LocalContext.current
+    val mapView = remember { MapView(context) }
+
+    val lifecycleObserver = remember {
+        LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_CREATE -> mapView.onCreate(null)
+                Lifecycle.Event.ON_START -> mapView.onStart()
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                Lifecycle.Event.ON_STOP -> mapView.onStop()
+                Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
+                else -> {}
+            }
+        }
+    }
+
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        lifecycle.addObserver(lifecycleObserver)
+        onDispose {
+            lifecycle.removeObserver(lifecycleObserver)
+        }
+    }
+
+    return mapView
+}
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun UserMapView(empresaId: String, rutaId: String) {
+fun UserMapView(empresaId: String, rutaId: String, apiKey: String) {
     val context = LocalContext.current
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     var coordenadas by remember { mutableStateOf(listOf<Pair<Double, Double>>()) }
     var showEditDialog by remember { mutableStateOf(false) }
-
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    var routePolyline by remember { mutableStateOf<List<LatLng>>(emptyList()) }
 
     // Efecto lanzado para obtener ubicación actual y coordenadas de la ruta
-    LaunchedEffect(locationPermissionState.hasPermission, rutaId) {  // Añadimos rutaId aquí
+    LaunchedEffect(locationPermissionState.hasPermission, rutaId) {
         if (locationPermissionState.hasPermission) {
             if (ActivityCompat.checkSelfPermission(
                     context,
@@ -142,8 +201,8 @@ fun UserMapView(empresaId: String, rutaId: String) {
             locationPermissionState.launchPermissionRequest()
         }
 
-        // Llamada para obtener las coordenadas de la base de datos
-        obtenerCoordenadas(empresaId, rutaId) { coords ->
+        // Llamada para obtener las coordenadas y el color de la empresa desde la base de datos
+        obtenerCoordenadas(empresaId, rutaId) { coords, color ->
             coordenadas = coords
         }
     }
@@ -174,19 +233,38 @@ fun UserMapView(empresaId: String, rutaId: String) {
                 )
             }
 
-            // Mostrar la ruta existente
+            // Mostrar la ruta existente con el color de la empresa
             val polylinePoints = coordenadas.map { LatLng(it.first, it.second) }
             if (polylinePoints.size > 1) {
                 Polyline(
                     points = polylinePoints,
-                    color = Color.Red,
+                    color = Color.Red, // Usar el color de la empresa
                     width = 10f
                 )
             }
         }
-    }
+        /**
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(15f)) {
+            Button(onClick = {
+                currentLocation?.let { userLocation ->
+                    val puntoMasCercano = encontrarPuntoMasCercano(userLocation, coordenadas)
+                    puntoMasCercano?.let { destino ->
+                        // Llamar a la API de Google Directions
+                        obtenerRuta(userLocation, destino, apiKey) { rutaGenerada ->
+                            routePolyline = rutaGenerada
+                        }
+                    }
+                }
+            }) {
+                Text(text = "Generar Ruta hacia el punto más cercano")
+            }
+        **/
+        }
 
-    if (showEditDialog) {
+/**    if (showEditDialog) {
         EditRouteDialog(
             empresaId = empresaId,
             rutaId = rutaId,
@@ -197,8 +275,11 @@ fun UserMapView(empresaId: String, rutaId: String) {
                 showEditDialog = false
             }
         )
+
     }
+**/
 }
+
 
 @Composable
 fun EditRouteDialog(
