@@ -27,8 +27,6 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import android.Manifest
 import android.content.pm.PackageManager
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -37,11 +35,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -120,7 +115,7 @@ fun NavigationHost(
             if (empresaId != null && rutaId != null) {
                 UserMapView(empresaId, rutaId, "AIzaSyDKZiHPz_IjoyrBkKj08G362TUyzni4vtw")
             } else {
-                MapScreenWithSearchAndMap()
+                InicioMap()
             }
         }
         composable("createRoute") { RouteCreationMap() }
@@ -130,76 +125,21 @@ fun NavigationHost(
 }
 
 @Composable
-fun MapScreenWithSearchAndMap() {
-    // Recordar estados para las entradas de origen y destino.
-    var origin by remember { mutableStateOf("") }
-    var destination by remember { mutableStateOf("") }
-
-    // Cree la posición de la cámara para el mapa, centrándose en Arequipa.
+fun InicioMap() {
+    // Coordenadas de Arequipa
     val arequipaLocation = LatLng(-16.4090, -71.5375)
+
+    // Crear el estado de la cámara para centrar el mapa en Arequipa
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(arequipaLocation, 12f) // Zoom level 12
+        position = CameraPosition.fromLatLngZoom(arequipaLocation, 12f) // Zoom nivel 12 para un buen enfoque
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize()
+    GoogleMap(
+        modifier = Modifier.fillMaxSize(),
+        cameraPositionState = cameraPositionState
     ) {
-        // Sección superior con campos de entrada
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-                .background(Color.White),
-            elevation = CardDefaults.cardElevation(4.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(8.dp)
-            ) {
-                TextField(
-                    value = origin,
-                    onValueChange = { origin = it },
-                    label = { Text("Seleccione origen") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Place,
-                            contentDescription = "Origen"
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                TextField(
-                    value = destination,
-                    onValueChange = { destination = it },
-                    label = { Text("Seleccione destino") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Place,
-                            contentDescription = "Destino"
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        // Sección de mapa
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp)
-        ) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState
-            )
-        }
     }
 }
-
-
 
 
 @Composable
