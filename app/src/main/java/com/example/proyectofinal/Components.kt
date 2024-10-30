@@ -52,6 +52,10 @@ import androidx.navigation.NavHostController
 import com.example.proyectofinal.Model.Empresa
 import com.example.proyectofinal.Model.Ruta
 import com.example.proyectofinal.viewmodels.obtenerEmpresas
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -84,14 +88,14 @@ fun TopAppBar(navController: NavController, drawerState: DrawerState) {
 
 
 
-        @Composable
+@Composable
 fun BottomNavigationBar(navController: NavHostController) {
     NavigationBar {
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.Home, contentDescription = "Mapa") },
-            label = { Text("Mapa") },
-            selected = navController.currentDestination?.route == "map",
-            onClick = { navController.navigate("map") }
+            icon = { Icon(Icons.Filled.Home, contentDescription = "Search") },
+            label = { Text("Search") },
+            selected = navController.currentDestination?.route == "search",
+            onClick = { navController.navigate("search") }
         )
         NavigationBarItem(
             icon = { Icon(Icons.Filled.Favorite, contentDescription = "Rutas favoritas") },
@@ -109,12 +113,17 @@ fun BottomNavigationBar(navController: NavHostController) {
 }
 
 @Composable
-fun DrawerContent(navController: NavController, drawerState: DrawerState, onRutaSelected: (String, String) -> Unit ) {
+fun DrawerContent(
+    navController: NavController,
+    drawerState: DrawerState,
+    onRutaSelected: (String, String) -> Unit
+) {
     val scope = rememberCoroutineScope()
     val empresas = remember { mutableStateOf<List<Empresa>>(emptyList()) }
 
+    // Llamar a la función que obtiene empresas en tiempo real
     LaunchedEffect(Unit) {
-        obtenerEmpresas { empresasList ->
+        obtenerEmpresasRealtime { empresasList ->
             empresas.value = empresasList
         }
     }
@@ -155,7 +164,6 @@ fun DrawerContent(navController: NavController, drawerState: DrawerState, onRuta
         }
     }
 }
-
 
 @Composable
 fun EmpresaCard(empresa: Empresa, onRutaClick: (String, String) -> Unit) {
@@ -249,3 +257,22 @@ fun RutaItem(ruta: Ruta, onClick: () -> Unit) {
         }
     }
 }
+
+fun obtenerEmpresasRealtime(onEmpresasChanged: (List<Empresa>) -> Unit) {
+    val databaseRef = FirebaseDatabase.getInstance().getReference("empresas")
+    databaseRef.addValueEventListener(object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            val empresasList = mutableListOf<Empresa>()
+            for (empresaSnapshot in snapshot.children) {
+                val empresa = empresaSnapshot.getValue(Empresa::class.java)
+                empresa?.let { empresasList.add(it) }
+            }
+            onEmpresasChanged(empresasList)
+        }
+
+        override fun onCancelled(error: DatabaseError) {
+            // Manejo de errores si es necesario
+        }
+    })
+}
+

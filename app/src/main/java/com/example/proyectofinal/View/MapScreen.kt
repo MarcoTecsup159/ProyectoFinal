@@ -1,12 +1,9 @@
 package com.example.proyectofinal.View
 
-import android.location.Location
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,133 +11,67 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.example.proyectofinal.ui.theme.ProyectoFInalTheme
-import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
-import android.Manifest
-import android.content.pm.PackageManager
+import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.TextField
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.proyectofinal.BottomNavigationBar
-import com.example.proyectofinal.DrawerContent
-import com.example.proyectofinal.TopAppBar
-import com.example.proyectofinal.viewmodels.dibujarRutaEnMapa
-import com.example.proyectofinal.viewmodels.encontrarPuntoMasCercano
-import com.example.proyectofinal.viewmodels.obtenerCoordenadas
-import com.example.proyectofinal.viewmodels.obtenerRuta
-import com.example.proyectofinal.viewmodels.updateRouteInFirebase
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.CameraPosition
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.Polyline
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.AutocompletePrediction
+import com.google.android.libraries.places.api.model.AutocompleteSessionToken
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.model.RectangularBounds
+import com.google.android.libraries.places.api.net.FetchPlaceRequest
+import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
+import com.google.android.libraries.places.api.net.PlacesClient
 import kotlinx.coroutines.launch
 
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppScreen() {
-    val navController = rememberNavController()
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-
-    var selectedEmpresaId by remember { mutableStateOf<String?>(null) }
-    var selectedRutaId by remember { mutableStateOf<String?>(null) }
-
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            DrawerContent(navController, drawerState) { empresaId, rutaId ->
-                selectedEmpresaId = empresaId
-                selectedRutaId = rutaId
-                scope.launch {
-                    drawerState.close()
-                    navController.navigate("map")
-                }
-            }
-        },
-        gesturesEnabled = false,
-        modifier = Modifier.fillMaxWidth(0.75f)  // El Drawer ocupará el 75% del ancho
-    ) {
-        Scaffold(
-            topBar = { TopAppBar(navController, drawerState) },
-            bottomBar = { BottomNavigationBar(navController) }
-        ) { innerPadding ->
-            NavigationHost(navController, Modifier.padding(innerPadding), selectedEmpresaId, selectedRutaId)
-        }
-    }
-}
-
-@Composable
-fun NavigationHost(
-    navController: NavHostController,
-    modifier: Modifier = Modifier,
-    empresaId: String?,
-    rutaId: String?
-) {
-    NavHost(navController, startDestination = "map", modifier = modifier) {
-        composable("map") {
-            if (empresaId != null && rutaId != null) {
-                UserMapView(empresaId, rutaId, "AIzaSyDKZiHPz_IjoyrBkKj08G362TUyzni4vtw")
-            } else {
-                InicioMap()
-            }
-        }
-        composable("createRoute") { RouteCreationMap() }
-        composable("favoriteroute") { FavoriteRoute() }
-        composable("profile") { ProfileScreen() }
-    }
-}
-
-@Composable
-fun InicioMap() {
-    // Coordenadas de Arequipa
-    val arequipaLocation = LatLng(-16.4090, -71.5375)
-
-    // Crear el estado de la cámara para centrar el mapa en Arequipa
+fun MapScreen(originLatLng: LatLng, destinationLatLng: LatLng) {
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(arequipaLocation, 12f) // Zoom nivel 12 para un buen enfoque
+        position = CameraPosition.fromLatLngZoom(originLatLng, 12f)
     }
 
     GoogleMap(
         modifier = Modifier.fillMaxSize(),
         cameraPositionState = cameraPositionState
     ) {
+        Marker(
+            state = rememberMarkerState(position = originLatLng),
+            title = "Origen"
+        )
+        Marker(
+            state = rememberMarkerState(position = destinationLatLng),
+            title = "Destino"
+        )
     }
 }
-
 
 @Composable
 fun rememberMapViewWithLifecycle(): MapView {
@@ -171,115 +102,6 @@ fun rememberMapViewWithLifecycle(): MapView {
 
     return mapView
 }
-
-@OptIn(ExperimentalPermissionsApi::class)
-@Composable
-fun UserMapView(empresaId: String, rutaId: String, apiKey: String) {
-    val context = LocalContext.current
-    var currentLocation by remember { mutableStateOf<LatLng?>(null) }
-    var coordenadas by remember { mutableStateOf(listOf<Pair<Double, Double>>()) }
-    var showEditDialog by remember { mutableStateOf(false) }
-    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-    val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
-    var routePolyline by remember { mutableStateOf<List<LatLng>>(emptyList()) }
-
-    // Efecto lanzado para obtener ubicación actual y coordenadas de la ruta
-    LaunchedEffect(locationPermissionState.hasPermission, rutaId) {
-        if (locationPermissionState.hasPermission) {
-            if (ActivityCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                    location?.let {
-                        currentLocation = LatLng(it.latitude, it.longitude)
-                    }
-                }
-            }
-        } else {
-            locationPermissionState.launchPermissionRequest()
-        }
-
-        // Llamada para obtener las coordenadas y el color de la empresa desde la base de datos
-        obtenerCoordenadas(empresaId, rutaId) { coords, color ->
-            coordenadas = coords
-        }
-    }
-
-    val cameraPositionState = rememberCameraPositionState {
-        position = currentLocation?.let {
-            com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(it, 12f)
-        } ?: com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(LatLng(-16.409047, -71.537451), 12f)
-    }
-
-    // Mostrar el mapa con las coordenadas cargadas
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showEditDialog = true }) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit")
-            }
-        }
-    ) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState
-        ) {
-            // Mostrar la ubicación actual del usuario
-            currentLocation?.let {
-                Marker(
-                    state = rememberMarkerState(position = it),
-                    title = "Current Location"
-                )
-            }
-
-            // Mostrar la ruta existente con el color de la empresa
-            val polylinePoints = coordenadas.map { LatLng(it.first, it.second) }
-            if (polylinePoints.size > 1) {
-                Polyline(
-                    points = polylinePoints,
-                    color = Color.Red, // Usar el color de la empresa
-                    width = 10f
-                )
-            }
-        }
-        /**
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(15f)) {
-            Button(onClick = {
-                currentLocation?.let { userLocation ->
-                    val puntoMasCercano = encontrarPuntoMasCercano(userLocation, coordenadas)
-                    puntoMasCercano?.let { destino ->
-                        // Llamar a la API de Google Directions
-                        obtenerRuta(userLocation, destino, apiKey) { rutaGenerada ->
-                            routePolyline = rutaGenerada
-                        }
-                    }
-                }
-            }) {
-                Text(text = "Generar Ruta hacia el punto más cercano")
-            }
-        **/
-        }
-
-/**    if (showEditDialog) {
-        EditRouteDialog(
-            empresaId = empresaId,
-            rutaId = rutaId,
-            onDismiss = { showEditDialog = false },
-            onSave = { newEmpresaId, newRouteName ->
-                // Actualizar los datos en Firebase
-                updateRouteInFirebase(context, empresaId, rutaId, newEmpresaId, newRouteName)
-                showEditDialog = false
-            }
-        )
-
-    }
-**/
-}
-
 
 @Composable
 fun EditRouteDialog(
@@ -314,6 +136,7 @@ fun EditRouteDialog(
                 Text("Save")
             }
         },
+
         dismissButton = {
             Button(onClick = { onDismiss() }) {
                 Text("Cancel")
@@ -321,6 +144,94 @@ fun EditRouteDialog(
         }
     )
 }
+
+
+@Composable
+fun PlaceAutocompleteTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placesClient: PlacesClient,
+    onPlaceSelected: (LatLng, String) -> Unit
+) {
+    val token = remember { AutocompleteSessionToken.newInstance() }
+    val scope = rememberCoroutineScope()
+    var suggestions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
+
+    Column {
+        // TextField para entrada de usuario
+        TextField(
+            value = value,
+            onValueChange = { input ->
+                onValueChange(input)
+                scope.launch {
+                    if (input.isNotEmpty()) {
+                        val request = FindAutocompletePredictionsRequest.builder()
+                            .setSessionToken(token)
+                            .setQuery(input)
+                            .setCountries("PE") // Limitar a Perú
+                            .setLocationBias(
+                                RectangularBounds.newInstance(
+                                    LatLng(-16.409047, -71.537451), // Coordenadas de Arequipa, Perú
+                                    LatLng(-16.290154, -71.510780)
+                                )
+                            )
+                            .build()
+
+                        placesClient.findAutocompletePredictions(request)
+                            .addOnSuccessListener { response ->
+                                suggestions = response.autocompletePredictions // Actualiza las sugerencias
+                            }
+                            .addOnFailureListener { exception ->
+                                Log.e("PlaceError", "Error: $exception")
+                                suggestions = emptyList() // Vacía la lista en caso de error
+                            }
+                    } else {
+                        suggestions = emptyList() // Limpia las sugerencias si el texto está vacío
+                    }
+                }
+            },
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Lista de sugerencias debajo del TextField
+        LazyColumn {
+            items(suggestions) { prediction ->
+                Text(
+                    text = prediction.getFullText(null).toString(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            // Obtén la ubicación seleccionada y llama a `onPlaceSelected` con dirección
+                            val placeId = prediction.placeId
+                            val placeRequest = FetchPlaceRequest
+                                .builder(placeId, listOf(Place.Field.LAT_LNG, Place.Field.NAME))
+                                .build()
+                            placesClient
+                                .fetchPlace(placeRequest)
+                                .addOnSuccessListener { placeResponse ->
+                                    val place = placeResponse.place
+                                    place.latLng?.let { latLng ->
+                                        onPlaceSelected(latLng, place.name ?: "")
+                                        onValueChange(
+                                            place.name ?: ""
+                                        ) // Actualiza el campo de texto con el nombre del lugar
+                                    }
+                                    suggestions = emptyList() // Limpiar la lista tras seleccionar
+                                }
+                                .addOnFailureListener { exception ->
+                                    Log.e("PlaceError", "Error fetching place: $exception")
+                                }
+                        }
+                        .padding(8.dp)
+                )
+            }
+        }
+    }
+}
+
+
 //Funcion para el perfil
 //pasara a su propio archivo cuando se realice la vista
 @Composable

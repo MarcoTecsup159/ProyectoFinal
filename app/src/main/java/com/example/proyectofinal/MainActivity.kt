@@ -13,16 +13,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.proyectofinal.View.AppScreen
-import com.example.proyectofinal.View.LoginScreen
-import com.example.proyectofinal.View.RegisterScreen
+import com.example.proyectofinal.View.auth.LoginScreen
+import com.example.proyectofinal.View.auth.RegisterScreen
 import com.example.proyectofinal.ui.theme.ProyectoFInalTheme
 import com.google.android.gms.maps.GoogleMap
+import com.google.android.libraries.places.api.Places
 import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     private lateinit var map:GoogleMap
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!Places.isInitialized()) {
+            Places.initialize(applicationContext, "AIzaSyAiaswLBAIKRY-IuRcX-JfRQ6VNBQnUGvw")
+        }
         FirebaseApp.initializeApp(this)
         setContent {
             ProyectoFInalTheme {

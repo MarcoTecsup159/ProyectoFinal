@@ -1,14 +1,26 @@
 package com.example.proyectofinal.viewmodels
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.location.Geocoder
 import android.location.Location
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.example.proyectofinal.DirectionsApiService
 import com.example.proyectofinal.DirectionsResponse
 import com.example.proyectofinal.Model.Empresa
+import com.example.proyectofinal.Model.Ruta
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.PolylineOptions
@@ -17,6 +29,9 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.example.proyectofinal.decodePolyline
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.MarkerOptions
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -27,8 +42,8 @@ import java.util.Locale
 
 
 val retrofit = Retrofit.Builder()
-    .baseUrl("https://gocombi-c2686-default-rtdb.firebaseio.com/empresas/") // Reemplaza con la URL base de tu API
-    .addConverterFactory(GsonConverterFactory.create()) // Convertidor Gson para manejar JSON
+    .baseUrl("https://maps.googleapis.com/") // URL base correcta
+    .addConverterFactory(GsonConverterFactory.create())
     .build()
 
 fun obtenerEmpresas(callback: (List<Empresa>) -> Unit) {
@@ -138,7 +153,7 @@ fun obtenerCoordenadas(empresaId: String, rutaId: String, callback: (List<Pair<D
     })
 }
 
-fun obtenerRuta(
+fun fetchRoutePoints(
     origin: LatLng,
     destination: LatLng,
     apiKey: String,
@@ -156,29 +171,33 @@ fun obtenerRuta(
         ) {
             if (response.isSuccessful) {
                 response.body()?.let { directionsResponse ->
-                    // Obtener la cadena de puntos de la overview_polyline
                     val polyline = directionsResponse.routes.firstOrNull()?.overview_polyline?.points
                     if (!polyline.isNullOrEmpty()) {
-                        // Decodificar la cadena de puntos en una lista de LatLng
                         val routePoints = decodePolyline(polyline)
                         callback(routePoints)
                     } else {
-                        // Si no hay puntos, retornar una lista vacía
                         callback(emptyList())
                     }
                 }
             } else {
-                // Manejar la respuesta no exitosa
                 callback(emptyList())
             }
         }
 
         override fun onFailure(call: Call<DirectionsResponse>, t: Throwable) {
-            // Manejar errores de la API
             t.printStackTrace()
             callback(emptyList())
         }
     })
+}
+
+fun addMarkerOnMap(googleMap: GoogleMap, location: LatLng, title: String) {
+    googleMap.addMarker(
+        MarkerOptions()
+            .position(location)
+            .title(title)
+    )
+    googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 15f)) // Acercar el mapa a la ubicación
 }
 
 // Función para encontrar el punto más cercano
@@ -198,12 +217,16 @@ fun encontrarPuntoMasCercano(currentLocation: LatLng, coordenadas: List<Pair<Dou
     return puntoMasCercano
 }
 
+
+
 // Función para calcular la distancia entre dos puntos
 fun calcularDistancia(p1: LatLng, p2: LatLng): Double {
     val results = FloatArray(1)
     Location.distanceBetween(p1.latitude, p1.longitude, p2.latitude, p2.longitude, results)
     return results[0].toDouble()  // Distancia en metros
 }
+
+
 
 fun updateRouteInFirebase(context: Context, oldEmpresaId: String, rutaId: String, newEmpresaId: String, newRouteName: String) {
     val database = FirebaseDatabase.getInstance()
@@ -242,4 +265,13 @@ fun dibujarRutaEnMapa(puntosRuta: List<LatLng>, googleMap: GoogleMap) {
         .width(10f)
 
     googleMap.addPolyline(polylineOptions)
+}
+
+@SuppressLint("MissingPermission")
+fun getCurrentLocation(fusedLocationClient: FusedLocationProviderClient, onLocationReceived: (LatLng) -> Unit) {
+    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+        location?.let {
+            onLocationReceived(LatLng(it.latitude, it.longitude))
+        }
+    }
 }
