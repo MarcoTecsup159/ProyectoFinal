@@ -1,5 +1,8 @@
 package com.example.proyectofinal.View
 
+import android.Manifest
+import android.app.Activity
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -9,40 +12,40 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.proyectofinal.ui.theme.ProyectoFInalTheme
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
 import android.util.Log
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.TopAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.google.android.gms.maps.MapView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.example.proyectofinal.calcularRutaMasEficiente
+import com.example.proyectofinal.calculateRouteDistance
+import com.example.proyectofinal.viewmodels.Route
+import com.example.proyectofinal.viewmodels.obtenerRutasDeFirebase
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.libraries.places.api.Places
+import com.google.android.gms.maps.model.PolylineOptions
 import com.google.android.libraries.places.api.model.AutocompletePrediction
 import com.google.android.libraries.places.api.model.AutocompleteSessionToken
 import com.google.android.libraries.places.api.model.Place
@@ -50,101 +53,180 @@ import com.google.android.libraries.places.api.model.RectangularBounds
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Polyline
+import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberMarkerState
 import kotlinx.coroutines.launch
 
 @Composable
-fun MapScreen(originLatLng: LatLng, destinationLatLng: LatLng) {
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(originLatLng, 12f)
-    }
-
-    GoogleMap(
-        modifier = Modifier.fillMaxSize(),
-        cameraPositionState = cameraPositionState
-    ) {
-        Marker(
-            state = rememberMarkerState(position = originLatLng),
-            title = "Origen"
-        )
-        Marker(
-            state = rememberMarkerState(position = destinationLatLng),
-            title = "Destino"
-        )
-    }
-}
-
-@Composable
-fun rememberMapViewWithLifecycle(): MapView {
-    val context = LocalContext.current
-    val mapView = remember { MapView(context) }
-
-    val lifecycleObserver = remember {
-        LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_CREATE -> mapView.onCreate(null)
-                Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
-                else -> {}
-            }
-        }
-    }
-
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle) {
-        lifecycle.addObserver(lifecycleObserver)
-        onDispose {
-            lifecycle.removeObserver(lifecycleObserver)
-        }
-    }
-
-    return mapView
-}
-
-@Composable
-fun EditRouteDialog(
-    empresaId: String,
-    rutaId: String,
-    onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit
+fun MapScreen(
+    originLatLng: LatLng,
+    destinationLatLng: LatLng,
+    empresaId: String
 ) {
-    var newEmpresaId by remember { mutableStateOf(empresaId) }
-    var newRouteName by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    val rutasOptimas = remember { mutableStateOf<List<Route>>(emptyList()) }
+    val rutaMasOptima = remember { mutableStateOf<Route?>(null) }
+    var mapProperties by remember { mutableStateOf(MapProperties(isMyLocationEnabled = true)) }
+    var mapUiSettings by remember { mutableStateOf(MapUiSettings()) }
+    val context = LocalContext.current
+    val locationPermissionGranted = remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
 
-    AlertDialog(
-        onDismissRequest = { onDismiss() },
-        title = { Text("Edit Route") },
-        text = {
-            Column {
-                TextField(
-                    value = newEmpresaId,
-                    onValueChange = { newEmpresaId = it },
-                    label = { Text("Company ID") }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                TextField(
-                    value = newRouteName,
-                    onValueChange = { newRouteName = it },
-                    label = { Text("Route Name") }
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onSave(newEmpresaId, newRouteName) }) {
-                Text("Save")
-            }
-        },
+    // Define esta constante para la solicitud de permisos
+    val LOCATION_PERMISSION_REQUEST_CODE = 1000
 
-        dismissButton = {
-            Button(onClick = { onDismiss() }) {
-                Text("Cancel")
+
+    // Estado de la cámara
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(originLatLng, 15f) // Inicializa con la posición de origen
+    }
+
+// En tu MapScreen
+    LaunchedEffect(Unit) {
+        ActivityCompat.requestPermissions(
+            context as Activity,
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+            LOCATION_PERMISSION_REQUEST_CODE
+        )
+        // Suponiendo que tienes la lista de rutas desde Firebase ya cargada en `rutas`
+        obtenerRutasDeFirebase { rutas ->
+            val rutaOptima = calcularRutaMasEficiente(
+                usuarioLatLng = originLatLng,  // Posición inicial o del usuario
+                destinoLatLng = destinationLatLng,  // Posición final o destino
+                rutas = rutas.filter { it.routePoints.isNotEmpty() } // Filtramos las rutas vacías
+            )
+
+            // Actualizamos el estado con la ruta óptima
+            rutaMasOptima.value = rutaOptima
+
+            // Mover la cámara a la ruta óptima si está disponible
+            rutaOptima?.let { ruta ->
+                val puntos = ruta.routePoints
+                if (puntos.isNotEmpty()) {
+                    // Mueve la cámara al primer punto de la ruta
+                    cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(LatLng(puntos.first().latitude, puntos.first().longitude), 15f))
+                }
+            }
+        }
+    }
+    if (locationPermissionGranted.value) {
+
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Ruta Óptima") })
+        },
+        content = { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                // Mapa para mostrar la ruta más óptima
+                Box(modifier = Modifier.weight(1f)) {
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        properties = mapProperties,
+                        uiSettings = mapUiSettings,
+                        cameraPositionState = cameraPositionState // Pasar el estado de la cámara
+                    ) {
+                        // Muestra los marcadores de origen y destino
+                        Marker(
+                            state = rememberMarkerState(position = originLatLng),
+                            title = "Origen"
+                        )
+                        Marker(
+                            state = rememberMarkerState(position = destinationLatLng),
+                            title = "Destino"
+                        )
+
+                        // Dibuja la polilínea de la ruta más óptima si está disponible
+                        rutaMasOptima.value?.let { ruta ->
+                            val puntos = ruta.routePoints
+                            if (puntos.isNotEmpty()) {
+                                // Dibuja la polilínea en el mapa
+                                Polyline(
+                                    points = puntos.map { LatLng(it.latitude, it.longitude) },
+                                    color = Color.Blue,
+                                    width = 8f
+                                )
+                            } else {
+                                Log.e("MapScreen", "Error: La ruta más óptima no tiene puntos para mostrar.")
+                            }
+                        }
+                    }
+                }
+
+                // Mostrar información de la ruta más óptima
+                rutaMasOptima.value?.let { ruta ->
+                    Text(
+                        text = "Ruta más óptima: ${ruta.id}",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.h6
+                    )
+                    Text(
+                        text = "Distancia: ${calculateRouteDistance(ruta.routePoints)} km",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.body1
+                    )
+                }
             }
         }
     )
+    } else {
+        // Mensaje indicando que se requiere permiso de ubicación
+        Text("Se requiere permiso de ubicación para mostrar el mapa")
+    }
 }
 
+// Composable para lista expandible de rutas
+@Composable
+fun RutasExpandiblesList(
+    rutas: List<Route>,
+    isExpanded: Boolean,
+    onExpandChange: () -> Unit,
+    onRutaClick: (Route) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TextButton(
+            onClick = onExpandChange,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (isExpanded) "Ocultar rutas" else "Mostrar rutas adicionales")
+        }
+        if (isExpanded) {
+            LazyColumn {
+                items(rutas) { ruta ->
+                    RutaItem(ruta = ruta, onClick = { onRutaClick(ruta) })
+                }
+            }
+        }
+    }
+}
+
+// Composable para cada ruta en la lista
+@Composable
+fun RutaItem(ruta: Route, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .clickable { onClick() }
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Ruta: ${ruta.id}")
+            Text("Distancia: ${calculateRouteDistance(ruta.routePoints)} km")
+        }
+    }
+}
 
 @Composable
 fun PlaceAutocompleteTextField(
@@ -152,13 +234,17 @@ fun PlaceAutocompleteTextField(
     onValueChange: (String) -> Unit,
     label: String,
     placesClient: PlacesClient,
-    onPlaceSelected: (LatLng, String) -> Unit
+    onPlaceSelected: (LatLng, String) -> Unit,
+    modifier: Modifier = Modifier,
+    getUserLocation: () -> Unit,
+    selectOnMap: () -> Unit
 ) {
     val token = remember { AutocompleteSessionToken.newInstance() }
     val scope = rememberCoroutineScope()
     var suggestions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
+    var showButtons by remember { mutableStateOf(false) } // Estado para mostrar botones
 
-    Column {
+    Column(modifier = modifier) {
         // TextField para entrada de usuario
         TextField(
             value = value,
@@ -180,20 +266,38 @@ fun PlaceAutocompleteTextField(
 
                         placesClient.findAutocompletePredictions(request)
                             .addOnSuccessListener { response ->
-                                suggestions = response.autocompletePredictions // Actualiza las sugerencias
+                                suggestions = response.autocompletePredictions
                             }
                             .addOnFailureListener { exception ->
                                 Log.e("PlaceError", "Error: $exception")
-                                suggestions = emptyList() // Vacía la lista en caso de error
+                                suggestions = emptyList()
                             }
                     } else {
-                        suggestions = emptyList() // Limpia las sugerencias si el texto está vacío
+                        suggestions = emptyList()
                     }
                 }
             },
             label = { Text(label) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focusState ->
+                    // Muestra los botones cuando el TextField tiene el foco
+                    showButtons = focusState.isFocused
+                }
         )
+
+        // Mostrar botones solo si `showButtons` es verdadero
+        if (showButtons) {
+            // Botón para obtener la ubicación actual
+            Button(onClick = getUserLocation, modifier = Modifier.fillMaxWidth()) {
+                Text("Usar ubicación actual")
+            }
+
+            // Botón para seleccionar en el mapa
+            Button(onClick = selectOnMap, modifier = Modifier.fillMaxWidth()) {
+                Text("Seleccionar en el mapa")
+            }
+        }
 
         // Lista de sugerencias debajo del TextField
         LazyColumn {
@@ -203,7 +307,6 @@ fun PlaceAutocompleteTextField(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // Obtén la ubicación seleccionada y llama a `onPlaceSelected` con dirección
                             val placeId = prediction.placeId
                             val placeRequest = FetchPlaceRequest
                                 .builder(placeId, listOf(Place.Field.LAT_LNG, Place.Field.NAME))
@@ -214,11 +317,9 @@ fun PlaceAutocompleteTextField(
                                     val place = placeResponse.place
                                     place.latLng?.let { latLng ->
                                         onPlaceSelected(latLng, place.name ?: "")
-                                        onValueChange(
-                                            place.name ?: ""
-                                        ) // Actualiza el campo de texto con el nombre del lugar
+                                        onValueChange(place.name ?: "")
                                     }
-                                    suggestions = emptyList() // Limpiar la lista tras seleccionar
+                                    suggestions = emptyList()
                                 }
                                 .addOnFailureListener { exception ->
                                     Log.e("PlaceError", "Error fetching place: $exception")
@@ -230,6 +331,7 @@ fun PlaceAutocompleteTextField(
         }
     }
 }
+
 
 
 //Funcion para el perfil

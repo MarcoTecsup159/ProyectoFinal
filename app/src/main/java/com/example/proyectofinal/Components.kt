@@ -80,7 +80,7 @@ fun TopAppBar(navController: NavController, drawerState: DrawerState) {
         },
         actions = {
             IconButton(onClick = { /* Acción de búsqueda */ }) {
-                Icon(Icons.Filled.Search, contentDescription = "Search")
+                Icon(Icons.Filled.Search, contentDescription = "map")
             }
         }
     )
@@ -92,10 +92,10 @@ fun TopAppBar(navController: NavController, drawerState: DrawerState) {
 fun BottomNavigationBar(navController: NavHostController) {
     NavigationBar {
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.Home, contentDescription = "Search") },
-            label = { Text("Search") },
-            selected = navController.currentDestination?.route == "search",
-            onClick = { navController.navigate("search") }
+            icon = { Icon(Icons.Filled.Home, contentDescription = "map") },
+            label = { Text("map") },
+            selected = navController.currentDestination?.route == "map",
+            onClick = { navController.navigate("maps") }
         )
         NavigationBarItem(
             icon = { Icon(Icons.Filled.Favorite, contentDescription = "Rutas favoritas") },

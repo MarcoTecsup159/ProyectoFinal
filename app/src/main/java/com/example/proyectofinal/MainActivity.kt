@@ -21,7 +21,7 @@ import com.google.android.libraries.places.api.Places
 import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
-    private lateinit var map:GoogleMap
+    private lateinit var googleMap: GoogleMap
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (!Places.isInitialized()) {
@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
 }
 
 @Composable

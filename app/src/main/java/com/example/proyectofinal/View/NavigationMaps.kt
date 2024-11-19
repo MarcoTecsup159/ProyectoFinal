@@ -83,24 +83,25 @@ fun NavigationHost(
                 }
             }
         }
-            composable(
-                route = "map/{originLat}/{originLng}/{destinationLat}/{destinationLng}",
-                arguments = listOf(
-                    navArgument("originLat") { type = NavType.StringType },
-                    navArgument("originLng") { type = NavType.StringType },
-                    navArgument("destinationLat") { type = NavType.StringType },
-                    navArgument("destinationLng") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
-                val originLat = backStackEntry.arguments?.getString("originLat")?.toDoubleOrNull() ?: 0.0
-                val originLng = backStackEntry.arguments?.getString("originLng")?.toDoubleOrNull() ?: 0.0
-                val destinationLat = backStackEntry.arguments?.getString("destinationLat")?.toDoubleOrNull() ?: 0.0
-                val destinationLng = backStackEntry.arguments?.getString("destinationLng")?.toDoubleOrNull() ?: 0.0
-                MapScreen(
-                    originLatLng = LatLng(originLat, originLng),
-                    destinationLatLng = LatLng(destinationLat, destinationLng)
-                )
-            }
+        composable(
+            route = "map/{originLat}/{originLng}/{destinationLat}/{destinationLng}",
+            arguments = listOf(
+                navArgument("originLat") { type = NavType.StringType },
+                navArgument("originLng") { type = NavType.StringType },
+                navArgument("destinationLat") { type = NavType.StringType },
+                navArgument("destinationLng") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val originLat = backStackEntry.arguments?.getString("originLat")?.toDoubleOrNull() ?: 0.0
+            val originLng = backStackEntry.arguments?.getString("originLng")?.toDoubleOrNull() ?: 0.0
+            val destinationLat = backStackEntry.arguments?.getString("destinationLat")?.toDoubleOrNull() ?: 0.0
+            val destinationLng = backStackEntry.arguments?.getString("destinationLng")?.toDoubleOrNull() ?: 0.0
+            MapScreen(
+                originLatLng = LatLng(originLat, originLng),
+                destinationLatLng = LatLng(destinationLat, destinationLng),
+                empresaId = "tu_empresa_id" // Asegúrate de pasar el ID de la empresa correcto
+            )
+        }
         composable("createRoute") { RouteCreationMap() }
         composable("favoriteroute") { FavoriteRoute() }
         composable("profile") { ProfileScreen() }

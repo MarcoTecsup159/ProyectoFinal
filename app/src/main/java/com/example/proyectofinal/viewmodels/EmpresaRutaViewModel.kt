@@ -2,25 +2,18 @@ package com.example.proyectofinal.viewmodels
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.location.Geocoder
 import android.location.Location
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import android.Manifest
+import androidx.core.content.ContextCompat
 import com.example.proyectofinal.DirectionsApiService
 import com.example.proyectofinal.DirectionsResponse
 import com.example.proyectofinal.Model.Empresa
-import com.example.proyectofinal.Model.Ruta
+import com.example.proyectofinal.calculateRouteDistance
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.PolylineOptions
@@ -30,8 +23,11 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.example.proyectofinal.decodePolyline
 import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.MarkerOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -68,7 +64,7 @@ fun obtenerEmpresas(callback: (List<Empresa>) -> Unit) {
 
 fun saveRouteToFirebase(context: Context, empresaId: String, routeName: String, routePoints: List<LatLng>) {
     val database = FirebaseDatabase.getInstance()
-    val routesRef = database.getReference("empresas/$empresaId/rutas")  // Guardar bajo la empresa seleccionada
+    val routesRef = database.getReference("empresas/$empresaId/rutas") // Guardar bajo la empresa seleccionada
 
     val geocoder = Geocoder(context, Locale.getDefault())
     var originAddress = ""
@@ -98,22 +94,19 @@ fun saveRouteToFirebase(context: Context, empresaId: String, routeName: String, 
         "puntosIntermedio" to routePoints.map { mapOf("lat" to it.latitude, "lng" to it.longitude) }
     )
 
-    routesRef.get().addOnSuccessListener { snapshot ->
-        val routeCount = snapshot.childrenCount.toInt() + 1
-        val routeId = "R$routeCount"
+    // Generar un ID único para la ruta
+    val routeId = "R" + System.currentTimeMillis() // Usar timestamp como identificador único
 
-        routesRef.child(routeId).setValue(routeData).addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                Log.d("Firebase", "Ruta guardada con éxito bajo la clave: $routeId")
-            } else {
-                Log.e("Firebase", "Error guardando la ruta: ${task.exception?.message}")
-            }
+    routesRef.child(routeId).setValue(routeData).addOnCompleteListener { task ->
+        if (task.isSuccessful) {
+            Log.d("Firebase", "Ruta guardada con éxito bajo la clave: $routeId")
+        } else {
+            Log.e("Firebase", "Error guardando la ruta: ${task.exception?.message}")
         }
     }.addOnFailureListener { e ->
-        Log.e("Firebase", "Error obteniendo el conteo de rutas: ${e.message}")
+        Log.e("Firebase", "Error al guardar la ruta: ${e.message}")
     }
 }
-
 
 fun getAddressFromLatLng(context: Context, latLng: LatLng): String {
     val geocoder = Geocoder(context, Locale.getDefault())
@@ -123,6 +116,37 @@ fun getAddressFromLatLng(context: Context, latLng: LatLng): String {
     } catch (e: IOException) {
         "Error getting address"
     }
+}
+
+fun getCurrentLocationWithAddress(
+    context: Context,
+    fusedLocationClient: FusedLocationProviderClient,
+    onLocationRetrieved: (LatLng, String) -> Unit,
+    onError: (String) -> Unit // Agrega un callback para manejar errores
+) {
+    // Asegúrate de verificar permisos antes de obtener la ubicación
+    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        onError("Permiso de ubicación no concedido")
+        return
+    }
+
+    fusedLocationClient.lastLocation
+        .addOnSuccessListener { location ->
+            if (location != null) {
+                val latLng = LatLng(location.latitude, location.longitude)
+                CoroutineScope(Dispatchers.Main).launch {
+                    val address = withContext(Dispatchers.IO) {
+                        getAddressFromLatLng(context, latLng)
+                    }
+                    onLocationRetrieved(latLng, address)
+                }
+            } else {
+                onError("No se encontró una ubicación anterior")
+            }
+        }
+        .addOnFailureListener { exception ->
+            onError("Error al obtener la ubicación: ${exception.message}")
+        }
 }
 
 fun obtenerCoordenadas(empresaId: String, rutaId: String, callback: (List<Pair<Double, Double>>, String) -> Unit)  {
@@ -152,6 +176,72 @@ fun obtenerCoordenadas(empresaId: String, rutaId: String, callback: (List<Pair<D
         }
     })
 }
+
+fun obtenerRutasDeFirebase(callback: (List<Route>) -> Unit) {
+    val rutas = mutableListOf<Route>()
+
+    // Referencia a la ubicación de todas las empresas en Firebase
+    val empresasReference = FirebaseDatabase.getInstance()
+        .getReference("empresas")
+
+    empresasReference.addValueEventListener(object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            // Contador para saber cuándo se han procesado todas las rutas
+            var rutasProcesadas = 0
+            var totalRutas = 0
+
+            // Primero, contamos el total de rutas que procesaremos
+            for (empresaSnapshot in snapshot.children) {
+                val rutasSnapshot = empresaSnapshot.child("rutas")
+                totalRutas += rutasSnapshot.childrenCount.toInt()
+            }
+
+            // Iterar sobre cada empresa en el snapshot
+            for (empresaSnapshot in snapshot.children) {
+                val empresaId = empresaSnapshot.key ?: continue // Obtener el ID de la empresa
+                val rutasSnapshot = empresaSnapshot.child("rutas")
+
+                // Iterar sobre cada ruta de la empresa
+                for (rutaSnapshot in rutasSnapshot.children) {
+                    val rutaId = rutaSnapshot.key ?: continue // Obtener el ID de la ruta
+                    val nombreRuta = rutaSnapshot.child("nombreRuta").getValue(String::class.java) ?: "Sin nombre" // Obtener el nombre de la ruta
+                    obtenerCoordenadas(empresaId, rutaId) { puntos, _ ->
+                        val origen = puntos.firstOrNull()?.let { LatLng(it.first, it.second) } ?: LatLng(0.0, 0.0)
+                        val destino = puntos.lastOrNull()?.let { LatLng(it.first, it.second) } ?: LatLng(0.0, 0.0)
+
+                        // Asegúrate de que estás usando 'routePoints' aquí
+                        val ruta = Route(
+                            id = rutaId,
+                            routePoints = puntos.map { LatLng(it.first, it.second) }, // Cambia a routePoints
+                            origen = origen,
+                            destino = destino,
+                            nombreRuta = nombreRuta // Añadir el nombre de la ruta
+                        )
+
+                        rutas.add(ruta)
+                        rutasProcesadas++
+
+                        // Verifica si se han procesado todas las rutas
+                        if (rutasProcesadas == totalRutas) {
+                            callback(rutas)
+                        }
+                    }
+                }
+            }
+
+            // Manejo de caso donde no hay rutas
+            if (totalRutas == 0) {
+                callback(rutas) // Retornar lista vacía si no hay rutas
+            }
+        }
+
+        override fun onCancelled(error: DatabaseError) {
+            // Manejo de errores si es necesario
+            callback(emptyList()) // Retornar lista vacía en caso de error
+        }
+    })
+}
+
 
 fun fetchRoutePoints(
     origin: LatLng,
@@ -191,13 +281,10 @@ fun fetchRoutePoints(
     })
 }
 
-fun addMarkerOnMap(googleMap: GoogleMap, location: LatLng, title: String) {
-    googleMap.addMarker(
+fun addMarkerOnMap( location: LatLng, title: String) {
         MarkerOptions()
             .position(location)
             .title(title)
-    )
-    googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 15f)) // Acercar el mapa a la ubicación
 }
 
 // Función para encontrar el punto más cercano

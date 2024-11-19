@@ -1,7 +1,6 @@
 package com.example.proyectofinal.View
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Looper
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
-import com.example.proyectofinal.viewmodels.addMarkerOnMap
 import com.example.proyectofinal.viewmodels.encontrarPuntoMasCercano
 import com.example.proyectofinal.viewmodels.fetchRoutePoints
 import com.example.proyectofinal.viewmodels.obtenerCoordenadas
@@ -33,7 +31,6 @@ import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.Dot
 import com.google.android.gms.maps.model.Gap
@@ -195,15 +192,3 @@ fun UserMapView(empresaId: String, rutaId: String, apiKey: String) {
      **/
 }
 
-fun getCurrentLocationAndAddMarker(context: Context, googleMap: GoogleMap) {
-    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-
-    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-        location?.let {
-            val currentLatLng = LatLng(location.latitude, location.longitude)
-
-            // Agrega el marcador en la ubicación actual
-            addMarkerOnMap(googleMap, currentLatLng, "Tu ubicación")
-        }
-    }
-}
