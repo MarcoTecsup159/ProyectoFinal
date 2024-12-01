@@ -1,4 +1,4 @@
-package com.example.proyectofinal.View
+package com.example.proyectofinal.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -22,9 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
-import com.example.proyectofinal.viewmodels.encontrarPuntoMasCercano
-import com.example.proyectofinal.viewmodels.fetchRoutePoints
-import com.example.proyectofinal.viewmodels.obtenerCoordenadas
+import com.example.proyectofinal.viewmodel.encontrarPuntoMasCercano
+import com.example.proyectofinal.viewmodel.fetchRoutePoints
+import com.example.proyectofinal.viewmodel.obtenerCoordenadas
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.location.LocationCallback

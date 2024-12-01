@@ -1,4 +1,4 @@
-package com.example.proyectofinal.View
+package com.example.proyectofinal.ui
 
 import android.location.Location
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,12 +33,11 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ExposedDropdownMenuBox
 import androidx.compose.material.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.TextField
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
-import com.example.proyectofinal.viewmodels.saveRouteToFirebase
+import com.example.proyectofinal.viewmodel.saveRouteToFirebase
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.firebase.database.FirebaseDatabase

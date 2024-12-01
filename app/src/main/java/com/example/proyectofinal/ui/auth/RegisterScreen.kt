@@ -1,5 +1,5 @@
 @file:Suppress("DEPRECATION")
-package com.example.proyectofinal.View.auth
+package com.example.proyectofinal.ui.auth
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.ClickableText

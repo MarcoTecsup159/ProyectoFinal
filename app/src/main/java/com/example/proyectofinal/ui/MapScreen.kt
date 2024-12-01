@@ -1,4 +1,4 @@
-package com.example.proyectofinal.View
+package com.example.proyectofinal.ui
 
 import android.Manifest
 import android.app.Activity
@@ -39,13 +39,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.proyectofinal.calcularRutaMasEficiente
-import com.example.proyectofinal.calculateRouteDistance
-import com.example.proyectofinal.viewmodels.Route
-import com.example.proyectofinal.viewmodels.obtenerRutasDeFirebase
+import com.example.proyectofinal.navigation.AppScreen
+import com.example.proyectofinal.utils.RouteUtils.GeoUtils.calculateRouteDistance
+import com.example.proyectofinal.utils.RouteUtils.calcularRutaMasEficiente
+import com.example.proyectofinal.viewmodel.Route
+import com.example.proyectofinal.viewmodel.obtenerRutasDeFirebase
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.PolylineOptions
 import com.google.android.libraries.places.api.model.AutocompletePrediction
 import com.google.android.libraries.places.api.model.AutocompleteSessionToken
 import com.google.android.libraries.places.api.model.Place

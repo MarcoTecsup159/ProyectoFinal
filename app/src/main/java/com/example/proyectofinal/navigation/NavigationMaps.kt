@@ -1,4 +1,4 @@
-package com.example.proyectofinal.View
+package com.example.proyectofinal.navigation
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,9 +20,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.proyectofinal.BottomNavigationBar
-import com.example.proyectofinal.DrawerContent
-import com.example.proyectofinal.TopAppBar
+import com.example.proyectofinal.ui.components.BottomNavigationBar
+import com.example.proyectofinal.ui.components.DrawerContent
+import com.example.proyectofinal.ui.components.TopAppBar
+import com.example.proyectofinal.ui.FavoriteRoute
+import com.example.proyectofinal.ui.MapScreen
+import com.example.proyectofinal.ui.ProfileScreen
+import com.example.proyectofinal.ui.RouteCreationMap
+import com.example.proyectofinal.ui.SearchScreen
+import com.example.proyectofinal.ui.UserMapView
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.launch
 

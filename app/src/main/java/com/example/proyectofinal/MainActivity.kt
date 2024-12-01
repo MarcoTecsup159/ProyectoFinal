@@ -12,9 +12,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.proyectofinal.View.AppScreen
-import com.example.proyectofinal.View.auth.LoginScreen
-import com.example.proyectofinal.View.auth.RegisterScreen
+import com.example.proyectofinal.navigation.AppScreen
+import com.example.proyectofinal.ui.auth.LoginScreen
+import com.example.proyectofinal.ui.auth.RegisterScreen
 import com.example.proyectofinal.ui.theme.ProyectoFInalTheme
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.libraries.places.api.Places

@@ -1,6 +1,6 @@
-package com.example.proyectofinal.Model
+package com.example.proyectofinal.model
 
-data class Empresa(
+data class empresa(
     val color: String? = null,
     val nombre: String? = null,
     val unidadNegocio: String? = null,

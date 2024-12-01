@@ -1,4 +1,4 @@
-package com.example.proyectofinal.viewmodels
+package com.example.proyectofinal.viewmodel
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -10,10 +10,10 @@ import android.util.Log
 import android.widget.Toast
 import android.Manifest
 import androidx.core.content.ContextCompat
-import com.example.proyectofinal.DirectionsApiService
-import com.example.proyectofinal.DirectionsResponse
-import com.example.proyectofinal.Model.Empresa
-import com.example.proyectofinal.calculateRouteDistance
+import com.example.proyectofinal.utils.DirectionsApiService
+import com.example.proyectofinal.utils.DirectionsResponse
+import com.example.proyectofinal.model.empresa
+import com.example.proyectofinal.utils.RouteUtils.GeoUtils.decodePolyline
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.PolylineOptions
@@ -21,7 +21,6 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.example.proyectofinal.decodePolyline
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.maps.model.MarkerOptions
 import kotlinx.coroutines.CoroutineScope
@@ -42,15 +41,15 @@ val retrofit = Retrofit.Builder()
     .addConverterFactory(GsonConverterFactory.create())
     .build()
 
-fun obtenerEmpresas(callback: (List<Empresa>) -> Unit) {
+fun obtenerEmpresas(callback: (List<empresa>) -> Unit) {
     val databaseReference = FirebaseDatabase.getInstance().getReference("empresas")
-    val empresaList = mutableListOf<Empresa>()
+    val empresaList = mutableListOf<empresa>()
 
     databaseReference.addValueEventListener(object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
             empresaList.clear()
             for (empresaSnapshot in snapshot.children) {
-                val empresa = empresaSnapshot.getValue(Empresa::class.java)
+                val empresa = empresaSnapshot.getValue(empresa::class.java)
                 empresa?.let { empresaList.add(it) }
             }
             callback(empresaList)
@@ -261,15 +260,18 @@ fun fetchRoutePoints(
         ) {
             if (response.isSuccessful) {
                 response.body()?.let { directionsResponse ->
-                    val polyline = directionsResponse.routes.firstOrNull()?.overview_polyline?.points
+                    val route = directionsResponse.routes.firstOrNull()
+                    val polyline = route?.overview_polyline?.points
                     if (!polyline.isNullOrEmpty()) {
                         val routePoints = decodePolyline(polyline)
                         callback(routePoints)
                     } else {
+                        Log.e("DirectionsAPI", "Polyline is empty or null")
                         callback(emptyList())
                     }
                 }
             } else {
+                Log.e("DirectionsAPI", "Response unsuccessful: ${response.errorBody()?.string()}")
                 callback(emptyList())
             }
         }

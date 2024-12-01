@@ -1,4 +1,4 @@
-package com.example.proyectofinal
+package com.example.proyectofinal.utils
 
 import com.google.android.gms.maps.model.LatLng
 
