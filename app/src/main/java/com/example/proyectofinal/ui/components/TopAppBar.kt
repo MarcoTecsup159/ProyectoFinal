@@ -33,11 +33,6 @@ fun TopAppBar(navController: NavController, drawerState: DrawerState) {
             ) {
                 Icon(Icons.Filled.Menu, contentDescription = "Menu")
             }
-        },
-        actions = {
-            IconButton(onClick = { /* Acción de búsqueda */ }) {
-                Icon(Icons.Filled.Search, contentDescription = "map")
-            }
         }
     )
 }

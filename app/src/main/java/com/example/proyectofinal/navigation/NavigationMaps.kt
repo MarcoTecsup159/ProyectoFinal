@@ -20,7 +20,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.proyectofinal.ui.components.BottomNavigationBar
 import com.example.proyectofinal.ui.components.DrawerContent
 import com.example.proyectofinal.ui.components.TopAppBar
 import com.example.proyectofinal.ui.FavoriteRoute
@@ -59,7 +58,6 @@ fun AppScreen() {
     ) {
         Scaffold(
             topBar = { TopAppBar(navController, drawerState) },
-            bottomBar = { BottomNavigationBar(navController) }
         ) { innerPadding ->
             NavigationHost(navController, Modifier.padding(innerPadding), selectedEmpresaId, selectedRutaId)
         }
