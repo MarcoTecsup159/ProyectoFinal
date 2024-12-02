@@ -139,19 +139,19 @@ fun RouteCreationMap() {
                     routePoints = routePoints.dropLast(1)
                 }
             }) {
-                Text("Remove Last Point")
+                Text("Eliminar el último punto")
             }
             Button(onClick = {
                 routePoints = emptyList()
             }) {
-                Text("Clear Route")
+                Text("Borrar ruta")
             }
         }
 
         Button(onClick = { showDialog = true }, modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)) {
-            Text("Save Route")
+            Text("Guardar ruta")
         }
     }
 
