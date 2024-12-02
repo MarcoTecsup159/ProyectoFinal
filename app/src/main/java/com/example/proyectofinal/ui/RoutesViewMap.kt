@@ -155,24 +155,6 @@ fun UserMapView(empresaId: String, rutaId: String, apiKey: String) {
                     )
                 }
             }
-
-            Button(onClick = {
-                currentLocation?.let { userLocation ->
-                    val closestPoint = encontrarPuntoMasCercano(userLocation, coordenadas)
-                    closestPoint?.let { destino ->
-                        puntoMasCercano = destino
-                        fetchRoutePoints(userLocation, destino, apiKey) { rutaGenerada ->
-                            routePolyline = rutaGenerada
-                        }
-                    }
-                }
-            }) {
-                Text(text = "Generar Ruta hacia el punto más cercano")
-            }
-
-            puntoMasCercano?.let {
-                Text(text = "Punto más cercano: Latitud: ${it.latitude}, Longitud: ${it.longitude}")
-            }
         }
     }
 
