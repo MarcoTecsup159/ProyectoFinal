@@ -136,4 +136,7 @@ dependencies {
 
     // For interop APIs with Material 2
     implementation ("androidx.glance:glance-material:1.1.0")
+
+    //fonts
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.0.0")
 }
