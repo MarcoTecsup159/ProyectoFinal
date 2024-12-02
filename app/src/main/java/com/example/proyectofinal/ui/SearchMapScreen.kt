@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
+import com.example.proyectofinal.ui.components.PlaceAutocompleteTextField
 import com.example.proyectofinal.viewmodel.getAddressFromLatLng
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition

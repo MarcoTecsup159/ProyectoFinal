@@ -111,13 +111,6 @@ fun UserMapView(empresaId: String, rutaId: String, apiKey: String) {
     }
 
     // Mostrar el mapa con las coordenadas cargadas
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showEditDialog = true }) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit")
-            }
-        }
-    ) {
         Column(modifier = Modifier.fillMaxSize()) {
             GoogleMap(
                 modifier = Modifier.weight(1f),
@@ -155,22 +148,6 @@ fun UserMapView(empresaId: String, rutaId: String, apiKey: String) {
                     )
                 }
             }
-        }
     }
-
-    /**    if (showEditDialog) {
-    EditRouteDialog(
-    empresaId = empresaId,
-    rutaId = rutaId,
-    onDismiss = { showEditDialog = false },
-    onSave = { newEmpresaId, newRouteName ->
-    // Actualizar los datos en Firebase
-    updateRouteInFirebase(context, empresaId, rutaId, newEmpresaId, newRouteName)
-    showEditDialog = false
-    }
-    )
-
-    }
-     **/
 }
 

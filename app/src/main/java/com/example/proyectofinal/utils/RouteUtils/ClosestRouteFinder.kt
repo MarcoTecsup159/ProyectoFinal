@@ -11,7 +11,6 @@ fun obtenerRutasCercanas(
     rutas: List<Route>
 ): List<Route> {
     return rutas.filter { ruta ->
-        // Verifica que 'routePoints' no esté vacío antes de acceder a 'first()' y 'last()'
         if (ruta.routePoints.isNotEmpty()) {
             val distanciaAlInicio = calculateDistance(
                 usuarioLatLng.latitude, usuarioLatLng.longitude,
@@ -21,14 +20,55 @@ fun obtenerRutasCercanas(
                 usuarioLatLng.latitude, usuarioLatLng.longitude,
                 ruta.routePoints.last().latitude, ruta.routePoints.last().longitude
             )
-            Log.d("Distancias", "Distancia al inicio: $distanciaAlInicio, Distancia al fin: $distanciaAlFin")
-
-            // Puedes ajustar el umbral de distancia según sea necesario
-            distanciaAlInicio <= 10000 || distanciaAlFin <= 10000 // Distancia de 1 km
+            distanciaAlInicio <= 10000 || distanciaAlFin <= 10000 // Ajustar el umbral según necesidades
         } else {
             false
         }
+    }
+}
 
+fun obtenerRutasMasEficientes(
+    usuarioLatLng: LatLng,
+    destinoLatLng: LatLng,
+    rutas: List<Route>,
+    rangoProximidadOrigen: Double = 1000.0, // en metros
+    rangoProximidadDestino: Double = 1000.0 // en metros
+): List<Route> {
+    val rutasCercanas = rutas.filter { ruta ->
+        if (ruta.routePoints.isNotEmpty()) {
+            val distanciaAlInicio = calculateDistance(
+                usuarioLatLng.latitude, usuarioLatLng.longitude,
+                ruta.routePoints.first().latitude, ruta.routePoints.first().longitude
+            )
+            val distanciaAlFin = calculateDistance(
+                usuarioLatLng.latitude, usuarioLatLng.longitude,
+                ruta.routePoints.last().latitude, ruta.routePoints.last().longitude
+            )
+            distanciaAlInicio <= 10000 || distanciaAlFin <= 10000 // Ajustar el umbral según necesidades
+        } else {
+            false
+        }
+    }
+
+    return rutasCercanas.filter { ruta ->
+        val puntosCercanosInicio = findClosestPoints(ruta, usuarioLatLng, numPoints = 2)
+        val puntosCercanosDestino = findClosestPoints(ruta, destinoLatLng, numPoints = 2)
+
+        if (puntosCercanosInicio.size >= 2 && puntosCercanosDestino.size >= 2) {
+            val distanciaInicio = puntosCercanosInicio.minOf { point -> distanceBetween(usuarioLatLng, point) }
+            val distanciaDestino = puntosCercanosDestino.minOf { point -> distanceBetween(destinoLatLng, point) }
+            distanciaInicio <= rangoProximidadOrigen && distanciaDestino <= rangoProximidadDestino
+        } else {
+            false
+        }
+    }.sortedBy { ruta ->
+        val puntosCercanosInicio = findClosestPoints(ruta, usuarioLatLng, numPoints = 2)
+        val puntosCercanosDestino = findClosestPoints(ruta, destinoLatLng, numPoints = 2)
+
+        val distanciaInicio = puntosCercanosInicio.minOf { point -> distanceBetween(usuarioLatLng, point) }
+        val distanciaDestino = puntosCercanosDestino.minOf { point -> distanceBetween(destinoLatLng, point) }
+
+        distanciaInicio + distanciaDestino
     }
 }
 

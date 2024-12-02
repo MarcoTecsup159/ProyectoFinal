@@ -24,7 +24,6 @@ import com.example.proyectofinal.ui.components.DrawerContent
 import com.example.proyectofinal.ui.components.TopAppBar
 import com.example.proyectofinal.ui.FavoriteRoute
 import com.example.proyectofinal.ui.MapScreen
-import com.example.proyectofinal.ui.ProfileScreen
 import com.example.proyectofinal.ui.RouteCreationMap
 import com.example.proyectofinal.ui.SearchScreen
 import com.example.proyectofinal.ui.UserMapView
@@ -73,18 +72,17 @@ fun NavigationHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = "map",
+        startDestination = "search",
         modifier = modifier
     ) {
         composable("map") {
             if (empresaId != null && rutaId != null) {
-                // Muestra UserMapView si empresaId y rutaId no son nulos
                 UserMapView(empresaId, rutaId, "AIzaSyAiaswLBAIKRY-IuRcX-JfRQ6VNBQnUGvw")
-            } else {
-                // Si empresaId o rutaId son nulos, muestra SearchScreen
-                SearchScreen(navController = navController) { origin, destination ->
-                    navController.navigate("map/${origin.latitude}/${origin.longitude}/${destination.latitude}/${destination.longitude}")
-                }
+            }
+        }
+        composable("search"){
+            SearchScreen(navController = navController) { origin, destination ->
+                navController.navigate("map/${origin.latitude}/${origin.longitude}/${destination.latitude}/${destination.longitude}")
             }
         }
         composable(
@@ -108,6 +106,5 @@ fun NavigationHost(
         }
         composable("createRoute") { RouteCreationMap() }
         composable("favoriteroute") { FavoriteRoute() }
-        composable("profile") { ProfileScreen() }
     }
 }

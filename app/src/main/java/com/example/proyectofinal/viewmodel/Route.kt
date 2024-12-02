@@ -7,7 +7,8 @@ data class Route(
     val routePoints: List<LatLng>, // Cambiado de 'points' a 'routePoints'
     val origen: LatLng,
     val destino: LatLng,
-    val nombreRuta: String
+    val nombreRuta: String,
+    val empresaColor: String
 )
 
 data class DisplayRoute(
